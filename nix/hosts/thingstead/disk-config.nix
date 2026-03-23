@@ -70,9 +70,9 @@ _: {
                 preCreateHook = ''
                   echo "" > newline
                   dd if=/dev/zero bs=1 count=1 seek=1 of=newline
-                  dd if=/dev/urandom bs=32 count=1 | od -A none -t x | tr -d '[:space:]' | cat - newline > /root/hdd.key
+                  dd if=/dev/urandom bs=32 count=1 | od -A none -t x | tr -d '[:space:]' | cat - newline > /tmp/hdd.key
                   dd if=/dev/zero bs=1024 count=1 of=/dev/disk/by-partlabel/cryptkey
-                  dd if=/root/hdd.key of=/dev/disk/by-partlabel/cryptkey
+                  dd if=/tmp/hdd.key of=/dev/disk/by-partlabel/cryptkey
                 '';
 
                 type = "zfs";

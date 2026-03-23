@@ -12,6 +12,8 @@
   boot = {
     zfs.devNodes = lib.mkForce "/dev/disk/by-partuuid";
     loader = {
+      grub.efiSupport = lib.mkDefault true;
+      grub.efiInstallAsRemovable = lib.mkDefault true;
       efi = {
         canTouchEfiVariables = true;
       };

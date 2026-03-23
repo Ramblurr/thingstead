@@ -64,6 +64,7 @@
           disko.nixosModules.disko
           impermanence.nixosModules.impermanence
           sops-nix.nixosModules.sops
+          ./nix/modules/nixos/ssh-keys.nix
           ./nix/hosts/thingstead
         ];
       };

@@ -4,109 +4,31 @@
   pkgs,
   ...
 }:
-let
-  lan0Mac = "c8:7f:54:6f:77:02";
-  lan1Mac = "c8:7f:54:6f:71:3f";
-  vlanDefs = {
-    moot = {
-      id = 12;
-      mtu = 1500;
-      dhcp4 = true;
-    };
-  };
-  mkVlanNetdev =
-    name: vlan:
-    lib.nameValuePair "20-vlan-${name}" {
-      netdevConfig = {
-        Kind = "vlan";
-        MTUBytes = vlan.mtu;
-        Name = "vlan-${name}";
-      };
-      vlanConfig.Id = vlan.id;
-    };
-  mkMacvlanNetdev =
-    name: _vlan:
-    lib.nameValuePair "20-${name}" {
-      netdevConfig = {
-        Kind = "macvlan";
-        Name = name;
-      };
-      macvlanConfig.Mode = "bridge";
-    };
-  mkVlanNetwork =
-    name: _vlan:
-    lib.nameValuePair "20-vlan-${name}" {
-      matchConfig.Name = "vlan-${name}";
-      networkConfig.LinkLocalAddressing = false;
-      linkConfig.RequiredForOnline = "carrier";
-      macvlan = [ name ];
-    };
-  mkBridgeNetwork =
-    name: vlan:
-    lib.nameValuePair "30-${name}" {
-      matchConfig.Name = name;
-      linkConfig.RequiredForOnline = "routable";
-      networkConfig = {
-        DHCP = if vlan.dhcp4 then "ipv4" else false;
-        DHCPServer = false;
-        EmitLLDP = true;
-        IPv4Forwarding = true;
-        IPv6AcceptRA = false;
-        IPv6Forwarding = true;
-        IPv6SendRA = false;
-        LLDP = true;
-        LinkLocalAddressing = false;
-        MulticastDNS = true;
-      };
-      dhcpV4Config = lib.mkIf vlan.dhcp4 {
-        UseDNS = true;
-        UseRoutes = true;
-      };
-      dhcpV6Config.UseDNS = false;
-    };
-in
 {
   networking.useDHCP = false;
   services.timesyncd.enable = true;
   services.resolved.enable = true;
   systemd.network.enable = true;
   time.timeZone = "Europe/Berlin";
-
   systemd.network = {
     links = {
-      "10-lan0" = {
-        matchConfig.MACAddress = lan0Mac;
-        linkConfig.Name = "lan0";
+      "10-eno1" = {
+        matchConfig.MACAddress = "1c:69:7a:af:31:31";
+        linkConfig.Name = "eno1";
       };
-      "10-lan1" = {
-        matchConfig.MACAddress = lan1Mac;
-        linkConfig.Name = "lan1";
+      "10-enp6s0" = {
+        matchConfig.MACAddress = "00:30:93:12:14:79";
+        linkConfig.Name = "enp6s0";
       };
     };
-
-    netdevs = builtins.listToAttrs (
-      (lib.mapAttrsToList mkVlanNetdev vlanDefs) ++ (lib.mapAttrsToList mkMacvlanNetdev vlanDefs)
-    );
-
     networks = {
-      "10-lan0" = {
-        matchConfig.Name = "lan0";
-        networkConfig = {
-          DHCPServer = false;
-          EmitLLDP = true;
-          LLDP = true;
-          LinkLocalAddressing = false;
-          VLAN = map (name: "vlan-${name}") (builtins.attrNames vlanDefs);
-        };
-        linkConfig = {
-          MTUBytes = 9000;
-          RequiredForOnline = "carrier";
-        };
+      "10-eno1" = {
+        matchConfig.Name = "eno1";
+        networkConfig.DHCP = "ipv4";
       };
-
-      "10-lan1" = {
-        matchConfig.Name = "lan1";
-        networkConfig.ConfigureWithoutCarrier = true;
+      "10-enp6s0" = {
+        matchConfig.Name = "enp6s0";
+        #networkConfig.DHCP = "ipv4";
         linkConfig = {
           ActivationPolicy = "always-down";
           Unmanaged = true;
@@ -129,10 +51,7 @@ in
           Unmanaged = true;
         };
       };
-    }
-    // builtins.listToAttrs (
-      (lib.mapAttrsToList mkVlanNetwork vlanDefs) ++ (lib.mapAttrsToList mkBridgeNetwork vlanDefs)
-    );
+    };
   };
 
   services.openssh = {

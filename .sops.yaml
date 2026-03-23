@@ -1,0 +1,35 @@
+---
+keys:
+  - users:
+      - &ramblurr-pgp 978C4D08058BA26EB97CB51820782DBCACFAACDA
+      - &disaster-recovery age15j42dspmmwprjau6l48xp05d97s8ml5s3tjxrfwvm37tvuynssuqtsevkj
+      - &ramblurr-yk-office age1yubikey1qt0lmjdz8l27zy8gqlwu5hpplunz5dcsszuqjau7q7sdnksjqhm5cg2jkkl
+      - &ramblurr-yk-key age1yubikey1qvm060q3kense6l22nrjd5a9gqsm9k4eaanhuk5h3hpmvzes8xd6584fsvn
+  - hosts:
+      - &thingstead age1mt8v566ck43yzzgs0almncwej3rk6auxzzqhpzytjcw8x7fl7g6s2cpm95
+  - global-group: &global-group
+      age:
+        - *ramblurr-yk-office
+        - *ramblurr-yk-key
+        - *disaster-recovery
+        - *thingstead
+      pgp:
+        - *ramblurr-pgp
+  - admin-group: &admin-group
+      age:
+        - *ramblurr-yk-office
+        - *ramblurr-yk-key
+        - *disaster-recovery
+      pgp:
+        - *ramblurr-pgp
+creation_rules:
+  - path_regex: nix/secrets/global\.sops\.yaml$
+    key_groups:
+      - merge:
+          - *global-group
+  - path_regex: nix/hosts/thingstead/.*.sops.*$
+    key_groups:
+      - age:
+          - *thingstead
+        merge:
+          - *admin-group
