@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  inputs,
   ...
 }:
 
@@ -76,6 +77,38 @@
     group = "ramblurr";
     shell = pkgs.zsh;
     isNormalUser = true;
+    extraGroups = [ "wheel" ];
   };
   programs.zsh.enable = true;
+  security.sudo.enable = true;
+  security.sudo.wheelNeedsPassword = false;
+  nix = {
+    extraOptions = ''
+      # Quicker timeout for inaccessible binary caches
+      connect-timeout = 5
+      # Enable flakes
+      experimental-features = nix-command flakes
+      # Do not warn on dirty git repo
+      warn-dirty = false
+    '';
+    settings = {
+      substituters = [ ];
+      trusted-public-keys = [ ];
+      trusted-users = [
+        "root"
+        "@wheel"
+      ];
+      auto-optimise-store = true;
+    };
+
+    gc = {
+      automatic = true;
+      dates = "daily";
+      options = "--delete-older-than 7d";
+    };
+
+    registry.nixpkgs.flake = inputs.nixpkgs;
+
+    nixPath = [ "nixpkgs=/etc/nixpkgs/channels/nixpkgs" ];
+  };
 }
