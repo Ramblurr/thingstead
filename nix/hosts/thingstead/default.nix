@@ -40,18 +40,27 @@
     with pkgs;
     [
       bandwhich
+      curl
+      dig
       fd
+      git
       htop
       isd
       jq
+      killall
       lshw
+      lsof
       ncdu
       python3
       rclone
       ripgrep
       smartmontools
+      sops
       tcpdump
+      unzip
       vifm
+      vim
+      wget
       yq-go
     ]
     ++ (map (x: x.terminfo) (
@@ -110,5 +119,41 @@
     registry.nixpkgs.flake = inputs.nixpkgs;
 
     nixPath = [ "nixpkgs=/etc/nixpkgs/channels/nixpkgs" ];
+  };
+  systemd.tmpfiles.rules = [ "L+ /etc/nixpkgs/channels/nixpkgs - - - - ${inputs.nixpkgs}" ];
+  system = {
+    # Enable printing changes on nix build etc with nvd
+    activationScripts.report-changes = ''
+      PATH=$PATH:${
+        lib.makeBinPath [
+          pkgs.nvd
+          pkgs.nix
+        ]
+      }
+      nvd diff $(ls -dv /nix/var/nix/profiles/system-*-link | tail -2) || true
+    '';
+  };
+
+  systemd.services.nix-cleanup-gcroots = {
+    description = "Clean up stale Nix GC roots";
+    serviceConfig.Type = "oneshot";
+    script = ''
+      set -eu
+      # delete automatic gcroots older than 90 days
+      ${pkgs.findutils}/bin/find /nix/var/nix/gcroots/auto /nix/var/nix/gcroots/per-user -type l -mtime +90 -delete || true
+      # created by nix-collect-garbage, might be stale
+      ${pkgs.findutils}/bin/find /nix/var/nix/temproots -type f -mtime +10 -delete || true
+      # delete broken symlinks
+      ${pkgs.findutils}/bin/find /nix/var/nix/gcroots -xtype l -delete || true
+    '';
+  };
+
+  systemd.timers.nix-cleanup-gcroots = {
+    description = "Weekly timer for nix-cleanup-gcroots";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "Sun *-*-* 03:30:00";
+      Persistent = true;
+    };
   };
 }
