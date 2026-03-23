@@ -8,6 +8,13 @@
     devenv.inputs.nixpkgs.follows = "nixpkgs";
     clj-nix.url = "github:jlesquembre/clj-nix";
     clj-nix.inputs.nixpkgs.follows = "nixpkgs";
+    disko.url = "github:nix-community/disko";
+    disko.inputs.nixpkgs.follows = "nixpkgs";
+    microvm.url = "github:microvm-nix/microvm.nix";
+    microvm.inputs.nixpkgs.follows = "nixpkgs";
+    sops-nix.url = "github:Mic92/sops-nix";
+    sops-nix.inputs.nixpkgs.follows = "nixpkgs";
+    impermanence.url = "github:nix-community/impermanence";
   };
   outputs =
     inputs@{
@@ -15,70 +22,50 @@
       clj-nix,
       devenv,
       devshell,
+      nixpkgs,
+      disko,
+      impermanence,
+      sops-nix,
       ...
     }:
-    devenv.lib.mkFlake ./. {
-      inherit inputs;
-      withOverlays = [
-        devshell.overlays.default
-        devenv.overlays.default
-        clj-nix.overlays.default
-      ];
-      packages = {
-        default =
+    let
+      flake = devenv.lib.mkFlake ./. {
+        inherit inputs;
+        withOverlays = [
+          devshell.overlays.default
+          devenv.overlays.default
+          clj-nix.overlays.default
+        ];
+        devShell =
           pkgs:
-          let
-            root = toString ./.;
-            gitRev =
-              if self ? rev then
-                self.rev
-              else if self ? dirtyRev then
-                self.dirtyRev
-              else
-                "dirty";
-            projectSrc = pkgs.lib.cleanSourceWith {
-              src = ./.;
-              filter =
-                path: _type:
-                let
-                  rel = pkgs.lib.removePrefix (root + "/") (toString path);
-                  base = builtins.baseNameOf path;
-                in
-                !(base == ".git" || rel == "result" || pkgs.lib.hasPrefix "target/" rel);
-            };
-          in
-          pkgs.mkCljLib {
-            inherit projectSrc;
-            name = "com.outskirtslabs/TODO";
-            version = "0.0.TODO";
-            nativeBuildInputs = [
-              pkgs.coreutils
+          pkgs.devshell.mkShell {
+            imports = [
+              devenv.capsules.base
+              devenv.capsules.clojure
             ];
-            GIT_REV = gitRev;
-            JAVA_HOME = pkgs.jdk25.home;
-            buildCommand = ''
-              export JAVA_HOME="${pkgs.jdk25.home}"
-              export JAVA_CMD="${pkgs.jdk25}/bin/java"
-              clojure -T:build jar
-            '';
+            # https://numtide.github.io/devshell
+            commands = [
+              # { package = pkgs.bazqux; }
+            ];
+            packages = [
+              pkgs.deps-lock
+              # pkgs.foobar
+            ];
+
           };
       };
-      devShell =
-        pkgs:
-        pkgs.devshell.mkShell {
-          imports = [
-            devenv.capsules.base
-            devenv.capsules.clojure
-          ];
-          # https://numtide.github.io/devshell
-          commands = [
-            # { package = pkgs.bazqux; }
-          ];
-          packages = [
-            pkgs.deps-lock
-            # pkgs.foobar
-          ];
-
-        };
+    in
+    flake
+    // {
+      nixosConfigurations.thingstead = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = { inherit inputs self; };
+        modules = [
+          disko.nixosModules.disko
+          impermanence.nixosModules.impermanence
+          sops-nix.nixosModules.sops
+          ./nix/hosts/thingstead
+        ];
+      };
     };
 }
